@@ -13,5 +13,5 @@ if [ ! -f "$JAR_PATH" ]; then
     exit 1
 fi
 
-# Run the application
-java -jar "$JAR_PATH" "$@"
+# Run the application with registry enabled
+java -jar "$JAR_PATH" --enable-registry "$@"

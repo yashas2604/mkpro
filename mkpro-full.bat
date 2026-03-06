@@ -14,7 +14,7 @@ if not exist "%JAR_PATH%" (
     exit /b 1
 )
 
-:: Run the application
-java -jar "%JAR_PATH%" %*
+:: Run the application with registry enabled
+java -jar "%JAR_PATH%" --enable-registry %*
 
 endlocal

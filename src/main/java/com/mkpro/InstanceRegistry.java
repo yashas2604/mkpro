@@ -42,6 +42,25 @@ public class InstanceRegistry {
         throw new RuntimeException("No available ports found starting from " + startPort);
     }
 
+    public static void register(String name, int wsPort, int httpPort) {
+        registerInstance(name, httpPort, wsPort);
+    }
+
+    public static void updatePorts(String name, int wsPort, int httpPort) {
+        executeWithLock(root -> {
+            boolean changed = false;
+            for (JsonNode node : root) {
+                ObjectNode obj = (ObjectNode) node;
+                if (obj.get("name").asText().equals(name)) {
+                    obj.put("wsPort", wsPort);
+                    obj.put("httpPort", httpPort);
+                    changed = true;
+                }
+            }
+            return changed;
+        }, true);
+    }
+
     public static void registerInstance(String name, int httpPort, int wsPort) {
         executeWithLock(root -> {
             cleanupStaleEntriesInternal(root);
@@ -147,8 +166,9 @@ public class InstanceRegistry {
 
                 return result;
             }
-        } catch (IOException e) {
-            System.err.println("Registry lock error: " + e.getMessage());
+        } catch (Exception e) {
+            String errorMessage = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            System.err.println("Registry lock error: " + errorMessage);
             return null;
         }
     }

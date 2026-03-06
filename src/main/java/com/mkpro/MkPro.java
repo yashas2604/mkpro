@@ -239,6 +239,10 @@ public class MkPro {
             System.err.println(ANSI_BLUE + "Warning: Could not read session_summary.txt" + ANSI_RESET);
         }
         
+        String username = System.getProperty("user.name");
+
+        String APP_NAME="mkpro-"+username;
+        
         final String finalSummaryContext = summaryContext;
 
         InMemorySessionService sessionService = new InMemorySessionService();
@@ -246,7 +250,7 @@ public class MkPro {
         InMemoryMemoryService memoryService = new InMemoryMemoryService();
         
         CentralMemory centralMemory = new CentralMemory();
-        Session mkSession = sessionService.createSession("mkpro", "Coordinator").blockingGet();
+        Session mkSession = sessionService.createSession(APP_NAME, "Coordinator").blockingGet();
         mkSession.state().put("MKPRO", "REDBUS");
 
         // Discover Available Ports
@@ -397,6 +401,10 @@ public class MkPro {
 
     private static void runConsoleLoop(String apiKey, String summaryContext, java.util.concurrent.atomic.AtomicReference<RunnerType> currentRunnerType, String initialModelName, Provider initialProvider, Session initialSession, InMemorySessionService sessionService, InMemoryArtifactService artifactService, InMemoryMemoryService memoryService, CentralMemory centralMemory, ActionLogger logger, boolean verbose) {
         
+        String username = System.getProperty("user.name");
+
+        String APP_NAME="mkpro-"+username;
+        
         // Identify Current Project
         String currentProjectPath = Paths.get("").toAbsolutePath().toString();
 
@@ -492,11 +500,11 @@ public class MkPro {
         Session currentSession = null;
         String savedSessionId = loadSessionId();
         boolean sessionLoaded = false;
-
+        
         // Try to load existing session if using a persistent runner
         if (savedSessionId != null && (currentRunnerType.get() == RunnerType.MAP_DB || currentRunnerType.get() == RunnerType.POSTGRES)) {
              try {
-                 currentSession = runner.sessionService().getSession("mkpro", "Coordinator", savedSessionId, java.util.Optional.empty()).blockingGet();
+                 currentSession = runner.sessionService().getSession(APP_NAME, "Coordinator", savedSessionId, java.util.Optional.empty()).blockingGet();
                  if (currentSession != null) {
                      sessionLoaded = true;
                  }
@@ -506,7 +514,7 @@ public class MkPro {
         }
 
         if (currentSession == null) {
-            currentSession = runner.sessionService().createSession("mkpro", "Coordinator").blockingGet();
+            currentSession = runner.sessionService().createSession(APP_NAME, "Coordinator").blockingGet();
             saveSessionId(currentSession.id());
         } else {
              if (verbose) System.out.println(ANSI_BLUE + "Resumed persistent session: " + currentSession.id() + ANSI_RESET);
@@ -734,7 +742,7 @@ public class MkPro {
                                 currentRunnerType.set(newType);
                                 fTerminal.writer().println(ANSI_BLUE + "Switched to " + currentRunnerType.get() + ". Rebuilding runner..." + ANSI_RESET);
                                 runner = runnerFactory.apply(newType);
-                                currentSession = runner.sessionService().createSession("mkpro", "Coordinator").blockingGet();
+                                currentSession = runner.sessionService().createSession(APP_NAME, "Coordinator").blockingGet();
                                 saveSessionId(currentSession.id());
                                 fTerminal.writer().println(ANSI_BLUE + "Runner rebuilt. New Session ID: " + currentSession.id() + ANSI_RESET);
                             } else {
@@ -1162,7 +1170,7 @@ public class MkPro {
 
             if ("/init".equalsIgnoreCase(line)) {
 
-                currentSession = runner.sessionService().createSession("mkpro", "Coordinator").blockingGet();
+                currentSession = runner.sessionService().createSession(APP_NAME, "Coordinator").blockingGet();
                 saveSessionId(currentSession.id());
                 System.out.println(ANSI_BLUE + "System: Session reset. New session ID: " + currentSession.id() + ANSI_RESET);
                 logger.log("SYSTEM", "Session reset by user.");
@@ -1186,7 +1194,7 @@ public class MkPro {
                      System.err.println(ANSI_BLUE + "Error: Agent returned empty summary." + ANSI_RESET);
                      continue;
                 }
-                currentSession = runner.sessionService().createSession("mkpro", "Coordinator").blockingGet();
+                currentSession = runner.sessionService().createSession(APP_NAME, "Coordinator").blockingGet();
                 saveSessionId(currentSession.id());
                 System.out.println(ANSI_BLUE + "System: Session compacted. New Session ID: " + currentSession.id() + ANSI_RESET);
                 logger.log("SYSTEM", "Session compacted.");

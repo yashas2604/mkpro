@@ -6,17 +6,22 @@ import com.google.genai.types.Content;
 import com.google.genai.types.Part;
 import io.reactivex.rxjava3.disposables.Disposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
+import com.mkpro.models.AgentConfig;
+import com.mkpro.agents.AgentManager;
 
 import javax.swing.*;
 import javax.swing.text.DefaultCaret;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.util.Collections;
+import java.util.Map;
 
 public class SwingCompanion {
 
     private final Runner runner;
     private final Session session;
+ 
+ 
     
     private JFrame frame;
     private JTextArea chatHistory;
@@ -24,15 +29,16 @@ public class SwingCompanion {
     private JButton sendButton;
     private JProgressBar progressBar;
 
-    public SwingCompanion(Runner runner, Session session) {
+    public SwingCompanion(Runner runner, Session mkSession) {
+   
         this.runner = runner;
-        this.session = session;
+        this.session = runner.sessionService().createSession("mkpro", "Coordinator").blockingGet();
         initializeUI();
     }
 
     private void initializeUI() {
         // Main Frame
-        frame = new JFrame("mkpro Companion");
+        frame = new JFrame("mkpro Companion - " );
         frame.setSize(600, 800);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLayout(new BorderLayout(10, 10));
@@ -77,11 +83,15 @@ public class SwingCompanion {
         frame.add(inputPanel, BorderLayout.SOUTH);
 
         // Welcome Message
-        appendToHistory("System", "mkpro Companion ready. Type your message below.");
+        appendToHistory("System", "mkpro Companion ( ) ready. Type your message below.");
+    }
+
+    public void setVisible(boolean visible) {
+        SwingUtilities.invokeLater(() -> frame.setVisible(visible));
     }
 
     public void show() {
-        SwingUtilities.invokeLater(() -> frame.setVisible(true));
+        setVisible(true);
     }
 
     private void sendMessage(ActionEvent e) {
@@ -112,7 +122,12 @@ public class SwingCompanion {
                         if (lowerToken.endsWith(".png")) mimeType = "image/png";
                         else if (lowerToken.endsWith(".webp")) mimeType = "image/webp";
                         
-                        parts.add(Part.fromBytes(rawBytes, mimeType));
+                        parts.add(Part.builder().inlineData(
+                            com.google.genai.types.Blob.builder()
+                                .mimeType(mimeType)
+                                .data(rawBytes)
+                                .build()
+                        ).build());
                     }
                 } catch (Exception ex) {
                     ex.printStackTrace();
@@ -128,17 +143,12 @@ public class SwingCompanion {
         // Run agent asynchronously
         Disposable d = runner.runAsync("Coordinator", session.id(), content)
                 .observeOn(Schedulers.io()) // Process on IO thread
-                .filter(event -> event.content().isPresent())
                 .subscribe(
                         event -> {
-                            event.content()
-                                .flatMap(Content::parts)
-                                .orElse(Collections.emptyList())
-                                .forEach(part -> 
-                                    part.text().ifPresent(chunk -> 
-                                        SwingUtilities.invokeLater(() -> appendText(chunk))
-                                    )
-                                );
+                            String responseText = event.stringifyContent();
+                            if (responseText != null) {
+                                SwingUtilities.invokeLater(() -> appendText(responseText));
+                            }
                         },
                         error -> {
                             SwingUtilities.invokeLater(() -> {
