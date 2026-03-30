@@ -80,7 +80,7 @@ To ensure project integrity and prevent accidental data loss, `mkpro` includes b
 - **Persistent Memory**:
     - **Central Store**: Project summaries and agent configurations are saved to `~/.mkpro/central_memory.db`.
     - **Local Session**: Context is managed efficiently with `/compact` to save tokens.
-- **Multi-Provider**: seamless switching between **Ollama** (Local), **Gemini** (Google), and **Bedrock** (AWS).
+- **Multi-Provider**: seamless switching between **Ollama** (Local), **Gemini** (Google), **Bedrock** (AWS), **Azure** (OpenAI), and **Sarvam**.
 - **Multi-Runner Support**: Choose between **InMemory**, **MapDB** (persistent), and **Postgres** (enterprise) execution environments for your agents.
 - **Debug Awareness**: Agents are aware of which provider/model they are running on, helping in performance tuning and debugging.
 - **Customizable Teams**: Define your own team rosters, agent descriptions, and specialized instructions using YAML files in `~/.mkpro/teams/`.

@@ -147,7 +147,7 @@ public class TrigonometryAgent {
                     .parts(java.util.Collections.singletonList(Part.fromText(input)))
                     .build();
 
-            runner.runWithSessionId(session.id(), content, com.google.adk.agents.RunConfig.builder().build())
+            runner.runAsync(session.sessionKey(), content, com.google.adk.agents.RunConfig.builder().build())
                     .doOnNext(event -> {
                         if (event.content().isPresent()) {
                             String text = event.stringifyContent();

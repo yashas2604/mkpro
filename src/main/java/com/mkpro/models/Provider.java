@@ -4,5 +4,6 @@ public enum Provider {
     OLLAMA,
     GEMINI,
     BEDROCK,
+    SARVAM,
     AZURE,
 }

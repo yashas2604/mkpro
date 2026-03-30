@@ -110,6 +110,12 @@ public class MkPro {
         "meta.llama3-8b-instruct-v1:0",
         "amazon.titan-text-express-v1"
     );
+    
+    private static final List<String> SARVAM_MODELS = Arrays.asList(
+        "sarvam-m",
+        "sarvam-30b",
+        "sarvam-105b"
+    );
 
     // Reusable Clipboard Handler
     private static String handleClipboardPaste(Terminal term) {
@@ -1196,6 +1202,8 @@ public class MkPro {
                         availableModels.addAll(GEMINI_MODELS);
                     } else if (selectedProvider == Provider.BEDROCK) {
                         availableModels.addAll(BEDROCK_MODELS);
+                    } else if (selectedProvider == Provider.SARVAM) {
+                        availableModels.addAll(SARVAM_MODELS);
                     } else if (selectedProvider == Provider.OLLAMA) {
                         fTerminal.writer().println(ANSI_BLUE + "Fetching available Ollama models..." + ANSI_RESET);
                         try {
@@ -1286,6 +1294,7 @@ public class MkPro {
                                 if (newProvider == Provider.GEMINI) newModel = "gemini-1.5-flash";
                                 else if (newProvider == Provider.BEDROCK) newModel = "anthropic.claude-3-sonnet-20240229-v1:0";
                                 else if (newProvider == Provider.OLLAMA) newModel = "devstral-small-2";
+                                else if (newProvider == Provider.SARVAM) newModel = "sarvam-m";
                                 else if (newProvider == Provider.AZURE) newModel = "gpt-4o";
                             }
 
@@ -1297,7 +1306,7 @@ public class MkPro {
                                 runner = runnerFactory.apply(currentRunnerType.get());
                             }
                         } catch (IllegalArgumentException e) {
-                            fTerminal.writer().println(ANSI_BLUE + "Invalid provider: " + providerStr + ". Use OLLAMA, GEMINI, BEDROCK, or AZURE." + ANSI_RESET);
+                            fTerminal.writer().println(ANSI_BLUE + "Invalid provider: " + providerStr + ". Use OLLAMA, GEMINI, BEDROCK, SARVAM, or AZURE." + ANSI_RESET);
                         }
                     }
                 } else {

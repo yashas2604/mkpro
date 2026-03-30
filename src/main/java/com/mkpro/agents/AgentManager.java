@@ -9,6 +9,8 @@ import com.google.adk.models.Gemini;
 import com.google.adk.models.BedrockBaseLM;
 import com.google.adk.models.AzureBaseLM;
 import com.google.adk.models.BaseLlm;
+import com.google.adk.models.sarvamai.SarvamAi;
+import com.google.adk.models.sarvamai.SarvamAiConfig;
 import com.google.adk.runner.InMemoryRunner;
 import com.google.adk.runner.MapDbRunner;
 import com.google.adk.runner.PostgresRunner;
@@ -398,6 +400,12 @@ public class AgentManager {
             return new OllamaBaseLM(config.getModelName(), ollamaServerUrl);
         } else if (config.getProvider() == Provider.BEDROCK) {
             return new BedrockBaseLM(config.getModelName(), null);
+        } else if (config.getProvider() == Provider.SARVAM) {
+            SarvamAiConfig sarvamConfig = SarvamAiConfig.builder().build();
+            return SarvamAi.builder()
+                .modelName(config.getModelName())
+                .config(sarvamConfig)
+                .build();
         } else if (config.getProvider() == Provider.AZURE) {
             return new AzureBaseLM(config.getModelName());
         }
