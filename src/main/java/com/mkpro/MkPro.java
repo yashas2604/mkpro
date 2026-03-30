@@ -374,11 +374,14 @@ public class MkPro {
             }
         }
 
+        System.out.println();
+        System.out.println(ANSI_WHITE + "  Built by " + ANSI_RED + ANSI_BOLD + "redBus" + ANSI_RESET + ANSI_WHITE + " Engineering " + ANSI_RESET);
+        System.out.println();
+
         // Animate the info text typing effect horizontally (character by character)
         String[] infoLines = {
             ANSI_WHITE + "  Logged in as: " + ANSI_CYAN + username + ANSI_RESET,
-            ANSI_WHITE + "  Plan: " + ANSI_GREEN + "MkPro AI Professional" + ANSI_RESET,
-            ANSI_WHITE + "  Today's Date: " + ANSI_YELLOW + date + ANSI_RESET,
+            ANSI_WHITE + "  Today's Date: " + ANSI_LIGHT_PURPLE + date + ANSI_RESET,
             "",
             ANSI_WHITE + "  Tips for getting started:" + ANSI_RESET,
             ANSI_WHITE + "  1. Ask questions, edit files, or run commands." + ANSI_RESET,

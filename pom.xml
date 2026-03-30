@@ -59,7 +59,7 @@
         <dependency>
             <groupId>com.google.adk</groupId>
             <artifactId>google-adk</artifactId>
-            <version>0.9.1-SNAPSHOT</version>
+            <version>1.0.1-rc.1-SNAPSHOT</version>
         </dependency>
 
         <!-- Logging -->
