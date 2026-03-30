@@ -431,29 +431,14 @@ public class MkPro {
                 Files.createDirectories(teamsDir);
             }
             
-            Path defaultTeamPath = teamsDir.resolve("default.yaml");
-            if (!Files.exists(defaultTeamPath)) {
-                try (var is = MkPro.class.getResourceAsStream("/teams/default.yaml")) {
+            // Always refresh bundled teams so users get new agents (e.g. AndroidDev, IosDev).
+            // Users who want custom teams should create their own YAML files.
+            String[] bundledTeams = {"default.yaml", "minimal.yaml", "polyglot.yaml", "adk_updater.yaml"};
+            for (String teamFile : bundledTeams) {
+                Path teamPath = teamsDir.resolve(teamFile);
+                try (var is = MkPro.class.getResourceAsStream("/teams/" + teamFile)) {
                     if (is != null) {
-                        Files.copy(is, defaultTeamPath);
-                    }
-                }
-            }
-            // Also copy minimal.yaml for reference
-            Path minimalTeamPath = teamsDir.resolve("minimal.yaml");
-            if (!Files.exists(minimalTeamPath)) {
-                try (var is = MkPro.class.getResourceAsStream("/teams/minimal.yaml")) {
-                    if (is != null) {
-                        Files.copy(is, minimalTeamPath);
-                    }
-                }
-            }
-            // Also copy adk_updater.yaml for reference
-            Path adkUpdaterTeamPath = teamsDir.resolve("adk_updater.yaml");
-            if (!Files.exists(adkUpdaterTeamPath)) {
-                try (var is = MkPro.class.getResourceAsStream("/teams/adk_updater.yaml")) {
-                    if (is != null) {
-                        Files.copy(is, adkUpdaterTeamPath);
+                        Files.copy(is, teamPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                     }
                 }
             }
@@ -1405,6 +1390,7 @@ public class MkPro {
                                 if (newProvider == Provider.GEMINI) newModel = "gemini-1.5-flash";
                                 else if (newProvider == Provider.BEDROCK) newModel = "anthropic.claude-3-sonnet-20240229-v1:0";
                                 else if (newProvider == Provider.OLLAMA) newModel = "devstral-small-2";
+                                else if (newProvider == Provider.AZURE) newModel = "gpt-4o";
                             }
 
                             agentConfigs.put(agentName, new AgentConfig(newProvider, newModel));
@@ -1415,7 +1401,7 @@ public class MkPro {
                                 runner = runnerFactory.apply(currentRunnerType.get());
                             }
                         } catch (IllegalArgumentException e) {
-                            fTerminal.writer().println(ANSI_BLUE + "Invalid provider: " + providerStr + ". Use OLLAMA, GEMINI, or BEDROCK." + ANSI_RESET);
+                            fTerminal.writer().println(ANSI_BLUE + "Invalid provider: " + providerStr + ". Use OLLAMA, GEMINI, BEDROCK, or AZURE." + ANSI_RESET);
                         }
                     }
                 } else {

@@ -7,6 +7,7 @@ import com.google.adk.memory.InMemoryMemoryService;
 import com.google.adk.models.OllamaBaseLM;
 import com.google.adk.models.Gemini;
 import com.google.adk.models.BedrockBaseLM;
+import com.google.adk.models.AzureBaseLM;
 import com.google.adk.models.BaseLlm;
 import com.google.adk.runner.InMemoryRunner;
 import com.google.adk.runner.MapDbRunner;
@@ -31,6 +32,7 @@ import com.mkpro.models.Provider;
 import com.mkpro.models.RunnerType;
 import com.mkpro.tools.MkProTools;
 import com.mkpro.tools.McpServerConnectTools;
+import com.mkpro.tools.McpServerConnectTools.ProjectInfo;
 import com.mkpro.ActionLogger;
 import com.mkpro.CentralMemory;
 import com.mkpro.SessionHelper;
@@ -142,6 +144,18 @@ public class AgentManager {
     }
 
     public Runner createRunner(Map<String, AgentConfig> agentConfigs, String summaryContext) {
+        String contextInfo = "\nCurrent Date: " + LocalDate.now() + "\nCurrent Working Directory: " + Paths.get("").toAbsolutePath().toString();
+
+        ProjectInfo projectInfo = null;
+        try {
+            projectInfo = McpServerConnectTools.detectProject(Paths.get("").toAbsolutePath());
+        } catch (Exception ignored) {}
+
+        if (projectInfo != null && !"unknown".equals(projectInfo.type)) {
+            contextInfo += "\n\nDETECTED PROJECT:\n" + projectInfo.toString();
+        }
+
+        // Coordinator Model
         AgentConfig coordConfig = agentConfigs.get("Coordinator");
         AgentDefinition coordDef = agentDefinitions.get("Coordinator");
         
@@ -154,25 +168,15 @@ public class AgentManager {
         String username = System.getProperty("user.name");
         String APP_NAME = "mkpro-" + username;
 
-        String contextInfo = "\n\nCurrent Date: " + LocalDate.now() +
-                             "\nCurrent Working Directory: " + Paths.get("").toAbsolutePath() + "\n";
 
         boolean hasEnabledMcpServers = !centralMemory.getEnabledMcpServers().isEmpty();
 
-        // Tool Map for sub-agents
-        Map<String, List<BaseTool>> toolMap = new HashMap<>();
-        
         List<BaseTool> coderTools = new ArrayList<>();
         coderTools.add(MkProTools.createReadFileTool());
         coderTools.add(MkProTools.createListDirTool());
         coderTools.add(MkProTools.createReadImageTool());
         coderTools.add(MkProTools.createReadClipboardTool());
         coderTools.add(MkProTools.createImageCropTool());
-        coderTools.add(McpServerConnectTools.createScanProjectTool());
-        coderTools.add(McpServerConnectTools.createSaveComponentTool());
-        if (hasEnabledMcpServers) {
-            coderTools.add(McpServerConnectTools.createMcpFetchDesignTool(centralMemory));
-        }
         if (vectorStore != null && embeddingService != null) {
              coderTools.add(MkProTools.createSearchCodebaseTool(vectorStore, embeddingService));
         }
@@ -197,13 +201,91 @@ public class AgentManager {
         codeEditorTools.add(McpServerConnectTools.createScanProjectTool());
         codeEditorTools.add(McpServerConnectTools.createSaveComponentTool());
 
-        // Assign to toolMap
+        List<BaseTool> securityAuditorTools = new ArrayList<>();
+        securityAuditorTools.addAll(coderTools); // Read/Analyze code
+        securityAuditorTools.add(MkProTools.createRunShellTool()); // Run audit tools
+        if (embeddingService != null) {
+            securityAuditorTools.add(MkProTools.createMultiProjectSearchTool(embeddingService));
+        }
+
+        List<BaseTool> architectTools = new ArrayList<>();
+        architectTools.add(MkProTools.createReadFileTool());
+        architectTools.add(MkProTools.createListDirTool());
+        architectTools.add(MkProTools.createReadImageTool());
+        if (vectorStore != null && embeddingService != null) {
+            architectTools.add(MkProTools.createSearchCodebaseTool(vectorStore, embeddingService));
+            architectTools.add(MkProTools.createMultiProjectSearchTool(embeddingService));
+        }
+
+        List<BaseTool> databaseTools = new ArrayList<>();
+        databaseTools.addAll(coderTools); // Read/Write SQL files, schemas
+
+        List<BaseTool> devOpsTools = new ArrayList<>();
+        devOpsTools.addAll(coderTools); // Read/Write configs (Dockerfiles, k8s, etc.)
+        devOpsTools.add(MkProTools.createRunShellTool()); // Execute cloud CLIs, docker commands
+
+        List<BaseTool> dataAnalystTools = new ArrayList<>();
+        dataAnalystTools.addAll(coderTools); // Read/Write Python scripts and data files
+        dataAnalystTools.add(MkProTools.createRunShellTool()); // Execute python scripts
+
+        List<BaseTool> mobileDevTools = new ArrayList<>();
+        mobileDevTools.addAll(coderTools);
+        mobileDevTools.add(MkProTools.createRunShellTool());
+        mobileDevTools.add(MkProTools.createWriteFileTool());
+
+        List<BaseTool> goalTrackerTools = new ArrayList<>();
+        goalTrackerTools.add(MkProTools.createAddGoalTool(centralMemory));
+        goalTrackerTools.add(MkProTools.createListGoalsTool(centralMemory));
+        goalTrackerTools.add(MkProTools.createUpdateGoalTool(centralMemory));
+
+        List<BaseTool> webTools = new ArrayList<>();
+        webTools.add(com.mkpro.tools.SeleniumTools.createNavigateTool());
+        webTools.add(com.mkpro.tools.SeleniumTools.createClickTool());
+        webTools.add(com.mkpro.tools.SeleniumTools.createTypeTool());
+        webTools.add(com.mkpro.tools.SeleniumTools.createScreenshotTool());
+        webTools.add(com.mkpro.tools.SeleniumTools.createGetHtmlTool());
+        webTools.add(com.mkpro.tools.SeleniumTools.createCloseTool());
+
+        // Add web capabilities to specific agents
+        testerTools.addAll(webTools);
+        docWriterTools.addAll(webTools);
+
+        // Dynamically assign tools based on agent roles/names
+        Map<String, List<BaseTool>> toolMap = new HashMap<>();
+        
         for (String agentName : agentConfigs.keySet()) {
-            if (agentName.contains("SysAdmin")) toolMap.put(agentName, sysAdminTools);
-            else if (agentName.contains("Tester")) toolMap.put(agentName, testerTools);
-            else if (agentName.contains("DocWriter")) toolMap.put(agentName, docWriterTools);
-            else if (agentName.contains("CodeEditor")) toolMap.put(agentName, codeEditorTools);
-            else toolMap.put(agentName, coderTools);
+            if ("Coordinator".equals(agentName)) continue; // Coordinator handled separately
+
+            List<BaseTool> toolsForAgent = new ArrayList<>();
+            
+            // Heuristic role assignment
+            if (agentName.contains("Android") || agentName.contains("Ios") || agentName.contains("Mobile")) {
+                toolsForAgent.addAll(mobileDevTools);
+            } else if (agentName.contains("Tester") || agentName.contains("QA")) {
+                toolsForAgent.addAll(testerTools);
+            } else if (agentName.contains("SysAdmin")) {
+                toolsForAgent.addAll(sysAdminTools);
+            } else if (agentName.contains("DocWriter")) {
+                toolsForAgent.addAll(docWriterTools);
+            } else if (agentName.contains("Security")) {
+                toolsForAgent.addAll(securityAuditorTools);
+            } else if (agentName.contains("Architect")) {
+                toolsForAgent.addAll(architectTools);
+            } else if (agentName.contains("Database") || agentName.contains("DBA")) {
+                toolsForAgent.addAll(databaseTools);
+            } else if (agentName.contains("DevOps") || agentName.contains("SRE")) {
+                toolsForAgent.addAll(devOpsTools);
+            } else if (agentName.contains("Analyst") || agentName.contains("Data")) {
+                toolsForAgent.addAll(dataAnalystTools);
+            } else if (agentName.contains("Goal") || agentName.contains("Tracker")) {
+                toolsForAgent.addAll(goalTrackerTools);
+            } else if (agentName.contains("CodeEditor")) {
+                toolsForAgent.addAll(codeEditorTools);
+            } else {
+                toolsForAgent.addAll(coderTools);
+            }
+            
+            toolMap.put(agentName, toolsForAgent);
         }
 
         // Coordinator Tools
@@ -240,11 +322,27 @@ public class AgentManager {
 
         String mcpContext = McpServerConnectTools.buildMcpContextForAgent(centralMemory);
 
+        String mobileRoutingContext = "";
+        if (projectInfo != null) {
+            if ("android".equals(projectInfo.type)) {
+                mobileRoutingContext = "\n\n**AUTO-DETECTED: This is an ANDROID project.**\n" +
+                    "- For ANY coding, feature development, bug fixing, or code analysis tasks, ALWAYS delegate to the AndroidDev agent (`ask_android_dev`) FIRST.\n" +
+                    "- The AndroidDev agent understands Android architecture, Kotlin/Java, Jetpack libraries, Gradle, and project-specific conventions.\n" +
+                    "- After AndroidDev provides the implementation, use CodeEditor (`ask_code_editor`) to write the files.\n";
+            } else if ("ios".equals(projectInfo.type)) {
+                mobileRoutingContext = "\n\n**AUTO-DETECTED: This is an iOS project.**\n" +
+                    "- For ANY coding, feature development, bug fixing, or code analysis tasks, ALWAYS delegate to the IosDev agent (`ask_ios_dev`) FIRST.\n" +
+                    "- The IosDev agent understands iOS architecture, Swift/ObjC, Apple frameworks, Xcode, and project-specific conventions.\n" +
+                    "- After IosDev provides the implementation, use CodeEditor (`ask_code_editor`) to write the files.\n";
+            }
+        }
+
         LlmAgent coordinatorAgent = LlmAgent.builder()
             .name("Coordinator")
             .description(coordDef.getDescription())
             .instruction(coordDef.getInstruction()
                     + contextInfo
+                    + mobileRoutingContext
                     + mcpContext
                     + (summaryContext != null ? "\n\nPrevious Context:\n" + summaryContext : ""))
             .model(model)
@@ -300,6 +398,8 @@ public class AgentManager {
             return new OllamaBaseLM(config.getModelName(), ollamaServerUrl);
         } else if (config.getProvider() == Provider.BEDROCK) {
             return new BedrockBaseLM(config.getModelName(), null);
+        } else if (config.getProvider() == Provider.AZURE) {
+            return new AzureBaseLM(config.getModelName());
         }
         return null;
     }
