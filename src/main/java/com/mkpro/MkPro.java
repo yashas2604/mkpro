@@ -696,7 +696,7 @@ public class MkPro {
                 try {
                     // ANSI colors in prompt: \u001b[34m> \u001b[33m
                     String timestamp = java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss").format(java.time.LocalTime.now());
-                    line = fLineReader.readLine(ANSI_BLUE + "[" + timestamp + "] > " + ANSI_YELLOW); 
+                    line = fLineReader.readLine(ANSI_WHITE + " " + timestamp + " " + ANSI_LIGHT_PURPLE + "❯ " + ANSI_YELLOW); 
                     System.out.print(ANSI_RESET); // Reset after input
                 } catch (UserInterruptException e) {
                     continue; 
@@ -714,6 +714,7 @@ public class MkPro {
 
             if ("/h".equalsIgnoreCase(line) || "/help".equalsIgnoreCase(line)) {
                 System.out.println(ANSI_BLUE + "Available Commands:" + ANSI_RESET);
+                System.out.println(ANSI_BLUE + "  /talk       - Start Jarvis Voice Assistant." + ANSI_RESET);
                 System.out.println(ANSI_BLUE + "  /config     - Configure a specific agent." + ANSI_RESET);
                 System.out.println(ANSI_BLUE + "  /runner     - Change the execution runner." + ANSI_RESET);
                 System.out.println(ANSI_BLUE + "  /team       - Switch agent team definition." + ANSI_RESET);
@@ -737,6 +738,21 @@ public class MkPro {
                 System.out.println(ANSI_BLUE + "  exit        - Quit." + ANSI_RESET);
                 continue;
             }
+            if ("/talk".equalsIgnoreCase(line)) {
+                try {
+                    com.mkpro.jarvis.JarvisManager jarvis = new com.mkpro.jarvis.JarvisManager(runner, currentSession.id());
+                    jarvis.start();
+                    System.out.println(ANSI_BLUE + "Jarvis is listening... Press Enter to stop." + ANSI_RESET);
+                    fLineReader.readLine(""); // Wait for user to press enter
+                    jarvis.stop();
+                    System.out.println(ANSI_BLUE + "Jarvis stopped." + ANSI_RESET);
+                } catch (Exception e) {
+                    System.err.println(ANSI_RED + "Failed to start Jarvis: " + e.getMessage() + ANSI_RESET);
+                    if (verbose) e.printStackTrace();
+                }
+                continue;
+            }
+            
             if ("/maker".equalsIgnoreCase(line)) {
                 boolean newState = !makerEnabled.get();
                 makerEnabled.set(newState);
