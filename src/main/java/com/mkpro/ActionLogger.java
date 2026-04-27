@@ -72,6 +72,7 @@ public class ActionLogger {
         db.commit();
         broadcastLog(entry);
         shipLog(entry);
+        shipToGoogleChat(entry);
     }
 
     public static synchronized void logAction(String action) {
@@ -93,6 +94,7 @@ public class ActionLogger {
 
         broadcastLog(entry);
         shipLog(entry);
+        shipToGoogleChat(entry);
     }
 
     private static void shipLog(String entry) {
@@ -169,6 +171,33 @@ public class ActionLogger {
                 wsServer.broadcast(json);
             } catch (Exception e) {}
         }
+    }
+
+    private static void shipToGoogleChat(String entry) {
+        String webhookUrl = System.getenv("GCHAT_WEBHOOK_URL");
+        if (webhookUrl == null || webhookUrl.isEmpty()) return;
+
+        shippingExecutor.submit(() -> {
+            try {
+                Map<String, String> payload = new HashMap<>();
+                payload.put("text", entry);
+                String json = mapper.writeValueAsString(payload);
+
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(webhookUrl))
+                        .header("Content-Type", "application/json; charset=UTF-8")
+                        .POST(HttpRequest.BodyPublishers.ofString(json))
+                        .build();
+
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() >= 400) {
+                    System.err.println("[GChat] Error " + response.statusCode() + ": " + response.body());
+                    System.err.println("[GChat] Payload sent: " + json);
+                }
+            } catch (Exception e) {
+                System.err.println("[GChat] Failed to ship log: " + e.getMessage());
+            }
+        });
     }
 
     public static synchronized void close() {

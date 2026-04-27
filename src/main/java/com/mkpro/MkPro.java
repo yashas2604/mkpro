@@ -74,6 +74,7 @@ import org.slf4j.LoggerFactory;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import com.google.adk.memory.MapDBVectorStore;
+import org.telegram.telegrambots.longpolling.TelegramBotsLongPollingApplication;
 
 public class MkPro {
 
@@ -154,6 +155,8 @@ public class MkPro {
         }
         return null;
     }
+
+    private static TelegramBotsLongPollingApplication botsApplication;
 
     public static void main(String[] args) {
         // Print Logo/Banner
@@ -300,6 +303,13 @@ public class MkPro {
             System.out.println("\nStopping Servers...");
             wsServer.stopServer();
             httpServer.stop();
+            if (botsApplication != null) {
+                try {
+                    botsApplication.close();
+                } catch (Exception e) {
+                    System.err.println("Error closing Telegram bot: " + e.getMessage());
+                }
+            }
             if (finalUseRegistry) InstanceRegistry.unregisterInstance(finalInstanceName);
         }));
 
@@ -325,6 +335,7 @@ public class MkPro {
             uiConfigs.put("Coordinator", new AgentConfig(Provider.OLLAMA, modelName));
             
             Runner runner = uiRunnerBuilder.apply(uiConfigs, currentRunnerType.get());
+            startTelegramBot(runner, logger);
             SwingCompanion gui = new SwingCompanion(runner, mkSession);
             gui.show();
         } else {
@@ -332,6 +343,23 @@ public class MkPro {
         }
         
         logger.close();
+    }
+
+    private static void startTelegramBot(Runner runner, ActionLogger logger) {
+        String botToken = System.getenv("TELEGRAM_BOT_TOKEN");
+        if (botToken != null && !botToken.isEmpty()) {
+            Thread t = new Thread(() -> {
+                try {
+                    botsApplication = new TelegramBotsLongPollingApplication();
+                    botsApplication.registerBot(botToken, new TelegramBotBridge(botToken, runner, logger));
+                    System.out.println(ANSI_BLUE + "[System] Telegram Bot started in background." + ANSI_RESET);
+                } catch (Exception e) {
+                    System.err.println("Error starting Telegram Bot: " + e.getMessage());
+                }
+            }, "telegram-bot-thread");
+            t.setDaemon(true);
+            t.start();
+        }
     }
 
     private static void printBanner() {
@@ -590,6 +618,7 @@ public class MkPro {
         };
 
         Runner runner = runnerFactory.apply(currentRunnerType.get());
+        startTelegramBot(runner, logger);
         java.util.concurrent.atomic.AtomicBoolean makerEnabled = new java.util.concurrent.atomic.AtomicBoolean(false);
         java.util.concurrent.atomic.AtomicReference<String> injectedInput = new java.util.concurrent.atomic.AtomicReference<>(null);
         java.util.concurrent.atomic.AtomicInteger autoReplyCount = new java.util.concurrent.atomic.AtomicInteger(0);
@@ -699,7 +728,7 @@ public class MkPro {
                     line = fLineReader.readLine(ANSI_BLUE + "[" + timestamp + "] > " + ANSI_YELLOW); 
                     System.out.print(ANSI_RESET); // Reset after input
                 } catch (UserInterruptException e) {
-                    continue; 
+                    break; 
                 } catch (EndOfFileException e) {
                     break;
                 }
